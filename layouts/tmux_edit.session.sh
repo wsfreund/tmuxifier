@@ -10,7 +10,7 @@ if initialize_session "$session"; then
   new_window
   run_cmd 'MANUAL_TITLE=DotFiles'
   run_cmd 'vim -p tmux.conf'
-  split_vl 15
+  split_v 10
   select_pane 0
   ########################################################################
   window_root="$HOME/.tmuxifier"

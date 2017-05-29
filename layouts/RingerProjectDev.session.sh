@@ -1,13 +1,14 @@
 # Set a custom session root path. Default is `$HOME`.
 # Must be called before `initialize_session`.
-if [ "$(hostname -d)" = "cern.ch" ]; then
-  session_root $HOME/public/RingerProject/root
-elif [ "$(hostname -s)" = "cessy" ]; then
-  session_root $HOME/RingerProject_cessy/root
-elif [ "$(hostname -s)" = "annecy" ]; then
-  session_root $HOME/RingerProject_annecy/root
-else
-  echo "ERROR: Couldn't determine session root by hostname." >&2 && return 1;
+session_root $HOME/public/RingerProject/root
+
+if [ "$(hostname -d)" = "lps.ufrj.br" ]; then
+  session_root "$HOME/RingerProject_cessy/root"
+  if [ "$(hostname -s)" = "annecy" -o "$(hostname -s)" = "satigny" ]; then
+    session_root "$HOME/RingerProject_annecy/root"
+    #else
+    #  echo "ERROR: Couldn't determine session root by hostname." >&2 && return 1;
+  fi
 fi
 
 # Create session with specified name if it does not already exist. If no
@@ -34,7 +35,9 @@ if initialize_session "$session"; then
   vim_dev_window "egSel" "50" "source $session_root/setrootcore.sh" ":let &makeprg=\"rc compile_pkg ElectronPhotonSelectorTools\""
   ######################################################################## 
   window_root="$HOME/Ringer/xAODRingerOfflinePorting/source/Event/xAOD/xAODCaloRings/"
-  vim_dev_window "CRings" "60" "source $session_root/setrootcore.sh" ":let &makeprg=\"rc compile_pkg xAODCaloRings\""
+  if [ -e "$window_root" ]; then
+    vim_dev_window "CRings" "60" "source $session_root/setrootcore.sh" ":let &makeprg=\"rc compile_pkg xAODCaloRings\""
+  fi
   ######################################################################## 
 
   htop_window
