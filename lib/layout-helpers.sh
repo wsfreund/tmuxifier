@@ -30,6 +30,85 @@ new_window() {
   __go_to_window_or_session_path
 }
 
+# Adds athena vim development window
+#
+# Arguments:
+#   - $1: Window name.
+#   - $2 (optional, default=""): Sleep time before pre-executing vim command
+#
+vim_athena_dev_window() {
+  window_root="$session_root/$2"
+  vim_dev_window "$1" "" "setAthena \"$ATHENA_SETUP\"" ""
+}
+
+# Adds rootcore vim development window
+#
+# Arguments:
+#   - $1: Window name.
+#   - $2: Package name.
+#   - $3 (optional, default=""): Sleep time before pre-executing vim command
+#
+vim_rootcore_dev_window() {
+  window_root="$session_root/$2"
+  vim_dev_window "$1" "$3" "source $session_root/setrootcore.sh" ":let &makeprg=\"rc compile_pkg $(basename $2)\""
+}
+
+# Adds vim development window
+#
+# Arguments:
+#   - $1: Window name.
+#   - $2 (optional, default=""): Sleep time before pre-executing vim command
+#   - $3 (optional, default=""): Pre-execute vim command
+#   - $4 (optional, default=""): Command to run on vim ("use : at start")
+#   - $5 (optional, default=false): Open all files on current folder
+#
+vim_dev_window() {
+  local name=""; local pre_cmd=""; local vim_cmd=""; local delay="";  local open_all=false;
+  if [ -n "$1" ]; then local name="$1"; fi
+  if [ -n "$2" ]; then local delay="$2"; fi
+  if [ -n "$3" ]; then local pre_cmd="$3"; fi
+  if [ -n "$4" ]; then local vim_cmd="$4"; fi
+  if [ -n "$5" ]; then local open_all=$5; fi
+  load_shared_window "vim_dev"
+  local name=""; local pre_cmd=""; local vim_cmd=""; local sleep=""; local open_all="";
+}
+
+# Adds htop shared window
+#
+# Arguments:
+#   - $1: (optional, default=99) Window number.
+#
+htop_window() {
+  if [ -n "$1" ]; then local winnum="$1"; else local winnum="99"; fi
+  load_shared_window "htop" "$winnum"
+}
+
+# Ensure that shared session has a kinit and voms update window
+ensure_kinit_voms_window() {
+  old_window=$window; window="kinit_voms"
+  # Create shared window if it is not available
+  if ! __exists_shared_window "$window"; then
+    local old_session="$session"; session=shared
+    load_shared_window "kinit_voms" "no-link"
+    session=$old_session;
+  fi
+  window="$old_window"
+}
+
+#htop(){
+#  if [ -n "$1" ]; then local winarg=(-n "$1"); fi
+#  if [ -n "$2" ]; then local command=("$2"); fi
+#
+#  tmuxifier-tmux new-window -t "$session:" "${winarg[@]}" "${command[@]}"
+#  local search=tmuxifier-tmux list-windows -t "shared:" -F "{window_name}:#{window_height}x#{window_width}"
+#
+#  # Disable renaming if a window name was given.
+#  if [ -n "$1" ]; then tmuxifier-tmux set-option -t "$1" allow-rename off; fi
+#
+#  window="$(__get_current_window_index)"
+#  __go_to_window_or_session_path
+#}
+
 # Split current window/pane vertically.
 #
 # Arguments:
@@ -186,6 +265,46 @@ window_root() {
   if [ -d "$dir" ]; then
     window_root="$dir"
   fi
+}
+
+# Load specified shared window layout.
+#
+# Arguments:
+#   - $1: Name of or file path to window layout to load.
+#   - $2: (optional) Override default window name.
+#
+load_shared_window() {
+  [ -z "$1" ] && echo "ERROR: Requested to load empty titled shared window!" >&2 && return 1;
+  local file="$1"; shift
+  #if test "$#" -gt "0"; then local winarg=($@); fi
+  if [ -n "$1" ]; then local winnum="$1"; else local winnum=""; fi
+
+  # Ensure that sourced window won't use our input
+  [ -z "$name" ] && local name="$file"
+
+  if ! __exists_shared_window "$name"; then
+
+    __ensure_shared_session_existance
+
+    full_file="$TMUXIFIER_LAYOUT_PATH/$file.window.sh"
+
+    if [ -f "$full_file" ]; then
+      local old_session="$session"; session=shared
+      source "$full_file"
+      session=$old_session;
+
+      # Reset `$window_root`.
+      if [[ "$window_root" != "$session_root" ]]; then
+        window_root "$session_root"
+      fi
+    else
+      echo "\"$1\" shared window layout not found." >&2
+      return 1
+    fi
+  fi
+  test "$winnum" != "no-link" && \
+    tmuxifier-tmux link-window -s "shared:$name" -t "$session:$winnum"
+  window="$(__get_current_window_index)"; local name=""
 }
 
 # Load specified window layout.
@@ -364,6 +483,26 @@ __get_first_window_index() {
     echo "$index" | head -1
   else
     echo "0"
+  fi
+}
+
+__ensure_shared_session_existance() {
+  if ! tmuxifier-tmux has-session -t "shared" 2> /dev/null; then
+    tmuxifier-tmux new-session -s "shared" -d
+  fi
+}
+
+__exists_shared_window() {
+  [ -z "$1" ] && echo "ERROR: Cannot check if empty titled shared window exists!" >&2 && return 1;
+  if tmuxifier-tmux has-session -t "shared" 2> /dev/null; then
+    window_list=$(tmuxifier-tmux list-windows -t "shared:" -F "#{window_name}")
+    if echo $window_list | grep -c -w "$1" > /dev/null; then
+      return 0;
+    else
+      return 1;
+    fi
+  else
+    return 1;
   fi
 }
 
