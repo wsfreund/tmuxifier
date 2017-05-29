@@ -9,7 +9,7 @@ if initialize_session "$session"; then
   window_root="$HOME/DotFiles"
   new_window
   run_cmd 'MANUAL_TITLE=DotFiles'
-  run_cmd 'vim -p tmux.conf'
+  run_cmd 'vim -p tmux/tmux.conf'
   split_v 10
   select_pane 0
   ########################################################################
